@@ -7,6 +7,7 @@
   "dependencies": {
     "async": "^1.5.0",
     "colors": "^1.0.3",
+    "content-type": "^1.0.1",
     "google-auth-library": "^0.9.6",
     "google-oauth-jwt": "~0.1.4",
     "googleclientlogin": "~0.2.8",

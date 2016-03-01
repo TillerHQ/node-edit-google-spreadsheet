@@ -4,6 +4,8 @@ var sinonChai = require('sinon-chai');
 chai.use(sinonChai);
 var expect = chai.expect;
 var mockery = require('mockery');
+var fs = require('fs');
+var path = require('path');
 
 var mockRequestCbParams = {
   err: null,
@@ -154,19 +156,22 @@ describe('Spreadsheet', function() {
         done();
       });
     });
+    beforeEach(function() {
+      mockRequestCbParams = {
+        err: null,
+        response: {
+          statusCode: 200,
+          headers: { 'content-type': 'application/atom+xml; charset=UTF-8; type=feed' }
+        },
+        body: '',
+      };
+    });
 
     describe('request', function() {
       var opts = {
         url: 'https://example.com'
       };
-      beforeEach(function() {
-        mockRequestCbParams = {
-          err: null,
-          response: { statusCode: 200 },
-          body: '',
-          headers: { 'content-type': 'application/atom+xml; charset=UTF-8; type=feed' }
-        };
-      });
+
       it('should return an error if no URL is provided', function(done) {
         spreadsheet.request({}, function(err, response) {
           expect(err).to.equal('Invalid request');
@@ -183,7 +188,8 @@ describe('Spreadsheet', function() {
       it('should return an error if the server does not respond', function(done) {
         mockRequestCbParams.response = undefined;
         spreadsheet.request(opts, function(err, response) {
-          expect(err).to.equal('no response');
+          expect(err).to.be.an.instanceof(Error);
+          expect(err.message).to.equal('no response');
           done();
         });
       });
@@ -191,7 +197,17 @@ describe('Spreadsheet', function() {
         mockRequestCbParams.response.statusCode = 500;
         mockRequestCbParams.body = 'Something broke.';
         spreadsheet.request(opts, function(err, response) {
-          expect(err).to.equal('Something broke.');
+          expect(err).to.be.an.instanceof(Error);
+          expect(err.message).to.equal('Something broke.');
+          done();
+        });
+      });
+      it('should return an error if the server an unknown content-type', function(done) {
+        mockRequestCbParams.body = '<!DOCTYPE html>';
+        mockRequestCbParams.response.headers['content-type'] = 'text/html';
+        spreadsheet.request(opts, function(err, response) {
+          expect(err).to.be.an.instanceof(Error);
+          expect(err.message).to.equal('<!DOCTYPE html>');
           done();
         });
       });
@@ -246,6 +262,70 @@ describe('Spreadsheet', function() {
           expect(response['gs:cell'].numericValue).to.equal(1.2);
           expect(response['gs:cell'].numericValue).to.be.a('number');
           done();
+        });
+      });
+    });
+
+    describe('receive', function() {
+
+      var response = fs.readFileSync(path.join(__dirname, 'response.xml')).toString();
+      var validateInfo = function(info) {
+        expect(info.spreadsheetId).to.equal('spreadsheetId');
+        expect(info.worksheetId).to.equal('worksheetId');
+        expect(info.worksheetTitle).to.equal('Sheet1');
+        expect(info.worksheetUpdated.toString()).to.equal(new Date('2006-11-17T18:27:32.543Z').toString());
+        expect(info.authors).to.equal('Fitzwilliam Darcy');
+        expect(info.totalCells).to.equal(3);
+        expect(info.totalRows).to.equal(2);
+        expect(info.lastRow).to.equal(9);
+        expect(info.nextRow).to.equal(10);
+      }
+
+      beforeEach(function() {
+        mockRequestCbParams.body = response;
+      });
+
+      describe('with only the callback', function() {
+        it('should return the parsed data', function() {
+          spreadsheet.receive(function(err, rows, info) {
+            expect(err).to.not.exist;
+            validateInfo(info);
+            expect(rows[1][1]).to.equal('Name');
+            expect(rows[1][2]).to.equal('Hours');
+            expect(rows[9][4]).to.equal('=FLOOR(C9/(B9*60),.0001)');
+          });
+        });
+      });
+      describe('with the getValues option', function() {
+        it('should return the value in lieu of the formula', function() {
+          spreadsheet.receive({getValues: true}, function(err, rows, info) {
+            expect(err).to.not.exist;
+            validateInfo(info);
+            expect(rows[9][4]).to.equal(5);
+          });
+        });
+      });
+      describe('with options and query parameters', function() {
+        it('should pass the query parameters through to the request', function() {
+          var qs = {
+            'min-row': 2
+          };
+          mockRequest.reset();
+          spreadsheet.receive({getValues: true}, qs, function(err, rows, info) {
+            expect(err).to.not.exist;
+            validateInfo(info);
+            expect(mockRequest.args[0][0].qs).to.equal(qs);
+          });
+        });
+      });
+      describe('with no feed element in the response', function() {
+        it('should return an error', function(done) {
+          mockRequestCbParams.body = "<gs:cell row='85' col='6' inputValue='=R[0]C[-1]/R[0]C[-2]' numericValue='1.2'>1.20</gs:cell>";
+          spreadsheet.receive(function(err, rows, info) {
+            expect(err).to.be.an.instanceof(Error);
+            expect(err.message).to.equal('Error Reading Spreadsheet');
+            done();
+          });
         });
       });
     });

@@ -30,7 +30,7 @@ Load a spreadsheet:
 
     // Choose from 1 of the 5 authentication methods:
 
-    //    1. Username and Password has been deprecated. OAuth2 is recommended. 
+    //    1. Username and Password has been deprecated. OAuth2 is recommended.
 
     // OR 2. OAuth
     oauth : {
@@ -99,7 +99,7 @@ Get metadata
 ``` js
   function sheetReady(err, spreadsheet) {
     if(err) throw err;
-    
+
     spreadsheet.metadata(function(err, metadata){
       if(err) throw err;
       console.log(metadata);
@@ -113,7 +113,7 @@ Set metadata
 ``` js
   function sheetReady(err, spreadsheet) {
     if(err) throw err;
-    
+
     spreadsheet.metadata({
       title: 'Sheet2'
       rowCount: 100,
@@ -168,6 +168,35 @@ spreadsheet.add({
 ```
 *Note: cell `a` and `b` are looked up on `send()`*
 
+#### More `receive` Examples
+
+``` js
+// Read a presumed header row only
+
+// {
+//    '1': { '1': 'Name', '2': 'Hours' }
+//    '2': { '1': 'Bob', '2': 40 }
+// }
+
+var params = {
+  'min-row': 1,
+  'max-row': 1
+};
+
+spreadsheet.receive({}, params, function(err, rows, info) {
+
+  if(err) throw err;
+  console.log("Found rows:", rows);
+  // Found rows: { '1': { '1': 'Name', '2': 'Hours' } }
+  console.log("totalCells returned:", info.totalCells);
+  // totalCells: 2,
+  console.log("totalRows returned:", info.totalRows);
+  // totalRows: 1,
+  console.log("lastRow returned:", info.lastRow);
+  // lastRow: 1
+
+```
+
 #### API
 
 
@@ -183,8 +212,8 @@ Sends off the batch of `add()`ed cells. Clears all cells once complete.
 
 `options.autoSize` When required, increase the worksheet size (rows and columns) in order to fit the batch - *NOTE: When enabled, this will trigger an extra request on every `send()`* (default `false`).
 
-##### spreadsheet.`receive( [options,] callback( err , rows , info ) )`
-Recieves the entire spreadsheet. The `rows` object is an object in the same format as the cells you `add()`, so `add(rows)` will be valid. The `info` object looks like:
+##### spreadsheet.`receive( [options, [qs,] ] callback( err , rows , info ) )`
+Receives the entire spreadsheet by default, or a portion as described by the qs parameter. The `rows` object is an object in the same format as the cells you `add()`, so `add(rows)` will be valid. The `info` object looks like:
 
 ```
 {
@@ -198,8 +227,9 @@ Recieves the entire spreadsheet. The `rows` object is an object in the same form
   lastRow: 3
 }
 ```
+Note that if the qs parameter is used to limit the amount of the spreadsheet returned, then totalCells, totalRows, and lastRow reference the cells and rows returned by the request -- not necessarily of the entire document.
 
-`options.getValues` Always get the values (results) of forumla cells.
+`options.getValues` Always get the values (results) of formula cells.
 
 ##### spreadsheet.`metadata( [data, ] callback )`
 
@@ -210,7 +240,7 @@ an extra request will be made to retrieve the missing data.*
 
 ##### spreadsheet.`raw`
 
-The raw data recieved from Google when enumerating the spreedsheet and worksheet lists, *which are triggered when searching for IDs*. In order to see this array of all spreadsheets (`raw.spreadsheets`) the `spreadsheetName` option must be used. Similarly for worksheets (`raw.worksheets`), the `worksheetName` options must be used.
+The raw data received from Google when enumerating the spreedsheet and worksheet lists, *which are triggered when searching for IDs*. In order to see this array of all spreadsheets (`raw.spreadsheets`) the `spreadsheetName` option must be used. Similarly for worksheets (`raw.worksheets`), the `worksheetName` options must be used.
 
 #### Options
 
