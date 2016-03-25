@@ -198,7 +198,9 @@ describe('Spreadsheet', function() {
         mockRequestCbParams.body = 'Something broke.';
         spreadsheet.request(opts, function(err, response) {
           expect(err).to.be.an.instanceof(Error);
-          expect(err.message).to.equal('Something broke.');
+          expect(err.message).to.exist;
+          expect(err.code).to.equal(500);
+          expect(err.body).to.equal('Something broke.');
           done();
         });
       });
